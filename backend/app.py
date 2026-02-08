@@ -14,7 +14,12 @@ load_dotenv()
 app = Flask(__name__)
 
 # Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///nano_test_platform.db')
+# Use instance folder for database (Flask standard location for instance data)
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+INSTANCE_DIR = os.path.join(BACKEND_DIR, 'instance')
+os.makedirs(INSTANCE_DIR, exist_ok=True)  # Ensure instance folder exists
+DATABASE_PATH = os.path.join(INSTANCE_DIR, 'nano_test_platform.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', f'sqlite:///{DATABASE_PATH}')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your_jwt_secret_key')
 
@@ -431,4 +436,7 @@ def home():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Production-ready startup
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    port = int(os.getenv('PORT', 5000))
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)

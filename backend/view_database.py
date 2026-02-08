@@ -1,8 +1,12 @@
 import sqlite3
 import json
+import os
 
-# Connect to database in instance folder
-conn = sqlite3.connect('instance/nano_test_platform.db')
+# Use absolute path to database in instance folder
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BACKEND_DIR, 'instance', 'nano_test_platform.db')
+
+conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 
 # Get all table names
