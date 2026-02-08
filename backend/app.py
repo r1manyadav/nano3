@@ -274,7 +274,6 @@ def submit_test():
     correct_count = 0
     wrong_count = 0
     unanswered_count = 0
-    total_marks = 0
     
     for question in test.questions:
         q_id = str(question.id)
@@ -285,15 +284,15 @@ def submit_test():
         if status == 'answered' and student_answer is not None:
             if student_answer == question.correct_answer:
                 correct_count += 1
-                total_marks += 4
             else:
                 wrong_count += 1
-                total_marks -= 1
         else:
             # Skipped, marked_only, or unanswered = 0 points
             unanswered_count += 1
     
-    total_marks = max(0, total_marks)
+    # Calculate total marks: +4 for correct, -1 for wrong, ensure no negative marks
+    total_marks = (correct_count * 4) - (wrong_count * 1)
+    total_marks = max(0, total_marks)  # Ensure marks never go below 0
     max_marks = len(test.questions) * 4
     percentage = (total_marks / max_marks * 100) if max_marks > 0 else 0
     is_passed = percentage >= test.passing_marks
