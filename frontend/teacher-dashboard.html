@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard - Nano Institute</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1>👨‍🏫 Teacher Dashboard</h1>
+                <button class="btn btn-secondary logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="dashboard-section">
+                <h2>Welcome, Teacher <span id="teacherName"></span></h2>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="showCreateTest()">➕ Create New Test</button>
+                    <button class="btn btn-secondary" onclick="showMyTests()">📋 My Tests</button>
+                </div>
+
+                <!-- Create Test Section -->
+                <div id="createTestSection" class="section hidden">
+                    <div class="test-creation-wrapper">
+                        <div class="test-info-panel">
+                            <h3>Test Details</h3>
+                            <form id="testInfoForm">
+                                <div class="form-group">
+                                    <label for="testName">Test Name:</label>
+                                    <input type="text" id="testName" placeholder="e.g., Biology Chapter 1" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="testDescription">Description:</label>
+                                    <textarea id="testDescription" placeholder="Describe your test" rows="2"></textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="testDuration">Duration (minutes):</label>
+                                    <input type="number" id="testDuration" placeholder="30" value="30" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="passingMarks">Passing Marks (%):</label>
+                                    <input type="number" id="passingMarks" placeholder="40" value="40" min="0" max="100" required>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="questions-panel">
+                            <h3>Add Questions</h3>
+                            <form id="createTestForm">
+                                <div id="questionsContainer"></div>
+
+                                <button type="button" class="btn btn-secondary btn-large" onclick="addQuestion()">+ Add New Question</button>
+                                <button type="submit" class="btn btn-primary btn-large">✓ Create Test</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- My Tests Section -->
+                <div id="myTestsSection" class="section hidden">
+                    <h3>Your Tests</h3>
+                    <div id="testsList" class="tests-list">
+                        <p>No tests created yet.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        const teacherId = localStorage.getItem('userId');
+        document.getElementById('teacherName').textContent = teacherId;
+
+        let questionCount = 0;
+
+        function showCreateTest() {
+            document.getElementById('createTestSection').classList.remove('hidden');
+            document.getElementById('myTestsSection').classList.add('hidden');
+            questionCount = 0;
+            document.getElementById('questionsContainer').innerHTML = '';
+            document.getElementById('createTestForm').reset();
+        }
+
+        async function showMyTests() {
+            document.getElementById('createTestSection').classList.add('hidden');
+            document.getElementById('myTestsSection').classList.remove('hidden');
+            await displayTests();
+        }
+
+        function addQuestion() {
+            questionCount++;
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'question-card';
+            questionDiv.id = `question-${questionCount}`;
+            questionDiv.innerHTML = `
+                <div class="question-card-header">
+                    <h4>Question ${questionCount}</h4>
+                    <button type="button" class="btn btn-danger btn-small" onclick="removeQuestion(${questionCount})">✕ Remove</button>
+                </div>
+
+                <div class="form-group">
+                    <label>Question Text:</label>
+                    <textarea placeholder="Enter your question here..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>📷 Question Image (Optional):</label>
+                    <input type="file" class="question-image-input" accept="image/*" data-question="${questionCount}">
+                    <small>Supported formats: JPG, PNG, GIF, WebP (Max 5MB)</small>
+                    <div class="image-preview" id="preview-${questionCount}" style="margin-top: 10px;"></div>
+                </div>
+
+                <div class="options-creation">
+                    <label><strong>Select Options (Click on the correct option):</strong></label>
+                    
+                    <div class="option-input-group">
+                        <div class="option-letter">A</div>
+                        <input type="text" placeholder="Option A" class="option-input" required>
+                        <button type="button" class="btn-option-select" onclick="selectCorrectOption(${questionCount}, 'A')" data-option="A">
+                            <span class="option-indicator">○</span>
+                        </button>
+                    </div>
+
+                    <div class="option-input-group">
+                        <div class="option-letter">B</div>
+                        <input type="text" placeholder="Option B" class="option-input" required>
+                        <button type="button" class="btn-option-select" onclick="selectCorrectOption(${questionCount}, 'B')" data-option="B">
+                            <span class="option-indicator">○</span>
+                        </button>
+                    </div>
+
+                    <div class="option-input-group">
+                        <div class="option-letter">C</div>
+                        <input type="text" placeholder="Option C" class="option-input" required>
+                        <button type="button" class="btn-option-select" onclick="selectCorrectOption(${questionCount}, 'C')" data-option="C">
+                            <span class="option-indicator">○</span>
+                        </button>
+                    </div>
+
+                    <div class="option-input-group">
+                        <div class="option-letter">D</div>
+                        <input type="text" placeholder="Option D" class="option-input" required>
+                        <button type="button" class="btn-option-select" onclick="selectCorrectOption(${questionCount}, 'D')" data-option="D">
+                            <span class="option-indicator">○</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="correct-answer-display">
+                    <p>Correct Answer: <span id="correct-${questionCount}" class="correct-badge">Not selected</span></p>
+                </div>
+
+                <input type="hidden" class="correct-answer-value" value="">
+            `;
+            document.getElementById('questionsContainer').appendChild(questionDiv);
+        }
+
+        function selectCorrectOption(questionNum, option) {
+            const questionCard = document.getElementById(`question-${questionNum}`);
+            
+            // Update all option buttons
+            questionCard.querySelectorAll('.btn-option-select').forEach(btn => {
+                btn.classList.remove('selected');
+                btn.querySelector('.option-indicator').textContent = '○';
+            });
+
+            // Mark selected option
+            const selectedBtn = questionCard.querySelector(`[onclick="selectCorrectOption(${questionNum}, '${option}')"]`);
+            selectedBtn.classList.add('selected');
+            selectedBtn.querySelector('.option-indicator').textContent = '●';
+
+            // Update display
+            document.getElementById(`correct-${questionNum}`).textContent = `Option ${option}`;
+            document.getElementById(`correct-${questionNum}`).dataset.option = option;
+
+            // Store hidden value
+            questionCard.querySelector('.correct-answer-value').value = option;
+        }
+
+        function removeQuestion(num) {
+            document.getElementById(`question-${num}`).remove();
+        }
+
+        async function displayTests() {
+            const testsList = document.getElementById('testsList');
+            
+            try {
+                const tests = await api.getTests();
+                
+                if (!tests || tests.length === 0) {
+                    testsList.innerHTML = '<p>No tests created yet.</p>';
+                    return;
+                }
+
+                testsList.innerHTML = tests.map((test) => `
+                    <div class="test-card">
+                        <h4>${test.name}</h4>
+                        <p>${test.description}</p>
+                        <p><strong>Questions:</strong> ${test.question_count}</p>
+                        <p><strong>Duration:</strong> ${test.duration} minutes</p>
+                        <p><strong>Test Link:</strong> <code>${window.location.origin}/frontend/attempt-test.html?testId=${test.id}</code></p>
+                        <div class="button-group">
+                            <button class="btn btn-secondary" onclick="copyTestLink(${test.id})">Copy Link</button>
+                            <button class="btn btn-secondary" onclick="viewResults(${test.id})">View Results</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                testsList.innerHTML = '<p style="color:red;">Error loading tests. Please try again.</p>';
+                console.error('Error loading tests:', error);
+            }
+        }
+
+        function copyTestLink(testId) {
+            const link = `${window.location.origin}/frontend/attempt-test.html?testId=${testId}`;
+            navigator.clipboard.writeText(link);
+            alert('Test link copied to clipboard!');
+        }
+
+        function viewResults(testId) {
+            localStorage.setItem('viewResultsTestId', testId);
+            window.location.href = 'test-results.html';
+        }
+
+        document.getElementById('createTestForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const questions = [];
+            let hasError = false;
+            
+            document.querySelectorAll('.question-card').forEach((block, index) => {
+                if (hasError) return;
+                
+                const textarea = block.querySelector('textarea');
+                const inputs = block.querySelectorAll('.option-input');
+                const correctAnswer = block.querySelector('.correct-answer-value').value;
+                const imageInput = block.querySelector('.question-image-input');
+
+                // Validation
+                if (!textarea.value.trim()) {
+                    alert(`Question ${index + 1}: Please enter question text!`);
+                    hasError = true;
+                    return;
+                }
+
+                if (!inputs[0].value.trim() || !inputs[1].value.trim() || !inputs[2].value.trim() || !inputs[3].value.trim()) {
+                    alert(`Question ${index + 1}: Please fill all options!`);
+                    hasError = true;
+                    return;
+                }
+
+                if (!correctAnswer) {
+                    alert(`Question ${index + 1}: Please select the correct answer!`);
+                    hasError = true;
+                    return;
+                }
+
+                const questionData = {
+                    text: textarea.value.trim(),
+                    optionA: inputs[0].value.trim(),
+                    optionB: inputs[1].value.trim(),
+                    optionC: inputs[2].value.trim(),
+                    optionD: inputs[3].value.trim(),
+                    correct: correctAnswer,
+                    image: null  // Will be set if image is selected
+                };
+
+                // If image is selected, convert to base64
+                if (imageInput.files && imageInput.files[0]) {
+                    const file = imageInput.files[0];
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        questionData.image = event.target.result; // base64 data URL
+                    };
+                    reader.readAsDataURL(file);
+                    // Note: This is async, but we'll handle it below
+                }
+
+                questions.push(questionData);
+            });
+
+            if (hasError) return;
+
+            if (questions.length === 0) {
+                alert('Please add at least one question!');
+                return;
+            }
+
+            const testName = document.getElementById('testName').value.trim();
+            const testDuration = document.getElementById('testDuration').value;
+            const passingMarks = document.getElementById('passingMarks').value;
+
+            if (!testName) {
+                alert('Please enter test name!');
+                return;
+            }
+
+            // Check if any question has an image being loaded
+            let allImagesLoaded = true;
+            for (const q of questions) {
+                const imageInput = document.querySelectorAll('.question-image-input')[questions.indexOf(q)];
+                if (imageInput && imageInput.files && imageInput.files[0]) {
+                    // Image is selected, need to wait for base64 conversion
+                    const file = imageInput.files[0];
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        q.image = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            // Small delay to ensure all images are loaded
+            setTimeout(async () => {
+                const testData = {
+                    name: testName,
+                    description: document.getElementById('testDescription').value.trim(),
+                    duration: parseInt(testDuration),
+                    passing_marks: parseInt(passingMarks),
+                    questions: questions
+                };
+
+                try {
+                    console.log('Sending test data with base64 images...');
+                    await api.createTest(testData);
+                    alert('Test created successfully! ✓');
+                    document.getElementById('createTestForm').reset();
+                    document.getElementById('questionsContainer').innerHTML = '';
+                    questionCount = 0;
+                    showMyTests();
+                } catch (error) {
+                    console.error('Full error object:', error);
+                    const errorMsg = error.message || 'Unknown error';
+                    alert('Error creating test:\n' + errorMsg);
+                }
+            }, 500);  // Wait 500ms for all images to load
+        });
+
+        // Add image preview functionality
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('question-image-input')) {
+                const file = e.target.files[0];
+                const questionCards = document.querySelectorAll('.question-card');
+                let qNum = null;
+                
+                // Find which question this image belongs to
+                for (let i = 0; i < questionCards.length; i++) {
+                    if (questionCards[i].querySelector('.question-image-input') === e.target) {
+                        qNum = i + 1;
+                        break;
+                    }
+                }
+                
+                const preview = document.getElementById(`preview-${qNum}`);
+
+                if (file) {
+                    // Validate file size (5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert('Image size must be less than 5MB');
+                        e.target.value = '';
+                        preview.innerHTML = '';
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        preview.innerHTML = `
+                            <img src="${event.target.result}" style="max-width: 300px; max-height: 200px; border-radius: 5px; margin-top: 10px;">
+                            <p style="font-size: 12px; color: #666;">${file.name}</p>
+                        `;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    preview.innerHTML = '';
+                }
+            }
+        }, true);
+
+        function logout() {
+            localStorage.removeItem('userType');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

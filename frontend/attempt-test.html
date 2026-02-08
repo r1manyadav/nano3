@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attempt Test - Nano Institute</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div>
+                    <h1 id="testTitle">Test</h1>
+                    <p class="marking-info">📋 Marking: +4 for correct | -1 for wrong</p>
+                </div>
+                <div class="timer" id="timer">30:00</div>
+            </div>
+        </header>
+
+        <main>
+            <div class="test-container">
+                <div class="question-info">
+                    <p>Question <span id="currentQuestion">1</span> of <span id="totalQuestions">10</span></p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+
+                <div class="question-section">
+                    <h3 id="questionText">Question text will appear here</h3>
+                    
+                    <div class="question-image-container" id="questionImageContainer" style="display: none;"></div>
+                    
+                    <div class="options-container" id="optionsContainer">
+                        <!-- Options will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <div class="navigation-buttons answer-buttons">
+                    <button class="btn btn-success" id="saveAndNextBtn" onclick="saveAndNext()">✓ Save & Next</button>
+                    <button class="btn btn-light" id="skipBtn" onclick="skipQuestion()">⊘ Skip</button>
+                    <button class="btn btn-warning" id="saveAndMarkBtn" onclick="saveAndMarkForReview()">⭐ Save & Mark for Review</button>
+                    <button class="btn btn-secondary" id="markBtn" onclick="markForReview()">📋 Mark for Review</button>
+                </div>
+
+                <div class="navigation-buttons" style="margin-top: 15px;">
+                    <button class="btn btn-secondary" id="prevBtn" onclick="previousQuestion()">⬅ Previous</button>
+                    <button class="btn btn-secondary" id="nextBtn" onclick="nextQuestion()">Next ➡</button>
+                    <button class="btn btn-danger" id="submitBtn" onclick="submitTest()" style="display: none;">Submit Test</button>
+                </div>
+            </div>
+
+            <!-- Question Navigation Panel -->
+            <div class="question-panel">
+                <h4>Questions</h4>
+                <div class="question-grid" id="questionGrid">
+                    <!-- Question numbers will be populated here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        let currentQuestionIndex = 0;
+        let testId = new URLSearchParams(window.location.search).get('testId');
+        let test = null;
+        let answers = {};        // Stores selected answers
+        let questionStatus = {}; // Tracks: 'answered', 'skipped', 'marked_only'
+        let markedForReview = {}; // Tracks questions marked for review
+        let timeRemaining = 0;
+        let timerInterval;
+
+        async function initTest() {
+            try {
+                test = await api.getTest(testId);
+                
+                document.getElementById('testTitle').textContent = test.name;
+                document.getElementById('totalQuestions').textContent = test.questions.length;
+                timeRemaining = test.duration * 60;
+
+                // Initialize answer and status storage
+                test.questions.forEach((question) => {
+                    answers[question.id] = null;
+                    questionStatus[question.id] = null; // 'answered', 'skipped', 'marked_only'
+                    markedForReview[question.id] = false;
+                });
+
+                startTimer();
+                displayQuestion();
+                generateQuestionGrid();
+            } catch (error) {
+                alert('Test not found!');
+                window.location.href = 'student-home.html';
+            }
+        }
+
+        // Answer submission functions with new scoring system
+        function saveAndNext() {
+            const selectedOption = document.querySelector('input[name="answer"]:checked');
+            if (selectedOption) {
+                const questionId = test.questions[currentQuestionIndex].id;
+                answers[questionId] = selectedOption.value;
+                questionStatus[questionId] = 'answered'; // +4 or -1 based on correctness
+                markedForReview[questionId] = false;
+                updateQuestionGrid();
+                nextQuestion();
+            } else {
+                alert('⚠️ Please select an option before saving.');
+            }
+        }
+
+        function skipQuestion() {
+            const questionId = test.questions[currentQuestionIndex].id;
+            // Skip: Don't save answer, treated as unattempted, 0 marks
+            answers[questionId] = null;
+            questionStatus[questionId] = 'skipped'; // 0 marks
+            markedForReview[questionId] = false;
+            updateQuestionGrid();
+            nextQuestion();
+        }
+
+        function saveAndMarkForReview() {
+            const selectedOption = document.querySelector('input[name="answer"]:checked');
+            if (selectedOption) {
+                const questionId = test.questions[currentQuestionIndex].id;
+                answers[questionId] = selectedOption.value;
+                questionStatus[questionId] = 'answered'; // +4 or -1 based on correctness
+                markedForReview[questionId] = true; // Mark for review
+                updateQuestionGrid();
+                nextQuestion();
+            } else {
+                alert('⚠️ Please select an option before saving.');
+            }
+        }
+
+        function markForReview() {
+            const questionId = test.questions[currentQuestionIndex].id;
+            // Mark for review only: Don't save answer, treated as unattempted, 0 marks
+            if (questionStatus[questionId] === 'answered') {
+                // If already answered, just mark for review
+                markedForReview[questionId] = true;
+            } else {
+                // If not answered, just mark as marked_only (no points)
+                answers[questionId] = null;
+                questionStatus[questionId] = 'marked_only'; // 0 marks
+                markedForReview[questionId] = true;
+            }
+            updateQuestionGrid();
+            nextQuestion();
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                updateTimerDisplay();
+
+                if (timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    submitTest();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            document.getElementById('timer').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+            if (timeRemaining <= 60) {
+                document.getElementById('timer').style.color = '#d32f2f';
+            }
+        }
+
+        function displayQuestion() {
+            const question = test.questions[currentQuestionIndex];
+            const currentAnswer = answers[question.id];
+            
+            document.getElementById('questionText').textContent = question.question_text;
+            document.getElementById('currentQuestion').textContent = currentQuestionIndex + 1;
+
+            // Display question image if it exists
+            const questionImageContainer = document.getElementById('questionImageContainer');
+            if (question.image) {
+                questionImageContainer.innerHTML = `
+                    <div class="question-image-wrapper">
+                        <img src="${question.image}" alt="Question image" class="question-image">
+                    </div>
+                `;
+                questionImageContainer.style.display = 'block';
+            } else {
+                questionImageContainer.innerHTML = '';
+                questionImageContainer.style.display = 'none';
+            }
+
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = `
+                <label class="option ${currentAnswer === 'A' ? 'selected' : ''}">
+                    <input type="radio" name="answer" value="A" ${currentAnswer === 'A' ? 'checked' : ''}>
+                    <span class="option-text">A. ${question.option_a}</span>
+                </label>
+                <label class="option ${currentAnswer === 'B' ? 'selected' : ''}">
+                    <input type="radio" name="answer" value="B" ${currentAnswer === 'B' ? 'checked' : ''}>
+                    <span class="option-text">B. ${question.option_b}</span>
+                </label>
+                <label class="option ${currentAnswer === 'C' ? 'selected' : ''}">
+                    <input type="radio" name="answer" value="C" ${currentAnswer === 'C' ? 'checked' : ''}>
+                    <span class="option-text">C. ${question.option_c}</span>
+                </label>
+                <label class="option ${currentAnswer === 'D' ? 'selected' : ''}">
+                    <input type="radio" name="answer" value="D" ${currentAnswer === 'D' ? 'checked' : ''}>
+                    <span class="option-text">D. ${question.option_d}</span>
+                </label>
+            `;
+
+            // Add event listeners to radio buttons
+            document.querySelectorAll('input[name="answer"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    answers[question.id] = this.value;
+                    updateQuestionGrid();
+                });
+            });
+
+            updateNavigationButtons();
+            updateProgressBar();
+        }
+
+        function generateQuestionGrid() {
+            const grid = document.getElementById('questionGrid');
+            grid.innerHTML = test.questions.map((question, index) => {
+                let status = '';
+                if (questionStatus[question.id] === 'answered') status = 'answered';
+                else if (questionStatus[question.id] === 'skipped') status = 'skipped';
+                else if (questionStatus[question.id] === 'marked_only') status = 'marked';
+                
+                return `<button class="question-num ${index === currentQuestionIndex ? 'active' : ''} ${status} ${markedForReview[question.id] ? 'marked' : ''}" 
+                        onclick="goToQuestion(${index})" title="${getQuestionStatusText(question.id)}">${index + 1}</button>`;
+            }).join('');
+        }
+
+        function getQuestionStatusText(questionId) {
+            let status = questionStatus[questionId];
+            let marked = markedForReview[questionId] ? ' [Marked for Review]' : '';
+            if (status === 'answered') return 'Answered' + marked;
+            if (status === 'skipped') return 'Skipped';
+            if (status === 'marked_only') return 'Marked for Review (Not Attempted)';
+            return 'Not Attempted';
+        }
+
+        function updateQuestionGrid() {
+            document.querySelectorAll('.question-num').forEach((btn, index) => {
+                const question = test.questions[index];
+                btn.classList.remove('active');
+                btn.classList.remove('save-next');
+                btn.classList.remove('skip');
+                btn.classList.remove('save-and-mark');
+                btn.classList.remove('mark-only');
+                
+                if (index === currentQuestionIndex) btn.classList.add('active');
+                
+                // Determine action color based on status and marked status
+                const status = questionStatus[question.id];
+                const marked = markedForReview[question.id];
+                
+                if (status === 'answered' && !marked) {
+                    btn.classList.add('save-next'); // Green
+                } else if (status === 'skipped') {
+                    btn.classList.add('skip'); // Light Gray
+                } else if (status === 'answered' && marked) {
+                    btn.classList.add('save-and-mark'); // Orange
+                } else if (status === 'marked_only') {
+                    btn.classList.add('mark-only'); // Dark Gray
+                }
+            });
+        }
+
+        function updateNavigationButtons() {
+            document.getElementById('prevBtn').disabled = currentQuestionIndex === 0;
+            document.getElementById('nextBtn').disabled = currentQuestionIndex === test.questions.length - 1;
+            
+            const submitBtn = document.getElementById('submitBtn');
+            if (currentQuestionIndex === test.questions.length - 1) {
+                submitBtn.style.display = 'inline-block';
+                document.getElementById('nextBtn').style.display = 'none';
+            } else {
+                submitBtn.style.display = 'none';
+                document.getElementById('nextBtn').style.display = 'inline-block';
+            }
+        }
+
+        function updateProgressBar() {
+            const progress = ((currentQuestionIndex + 1) / test.questions.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < test.questions.length - 1) {
+                currentQuestionIndex++;
+                displayQuestion();
+            }
+        }
+
+        function previousQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                displayQuestion();
+            }
+        }
+
+        function goToQuestion(index) {
+            currentQuestionIndex = index;
+            displayQuestion();
+        }
+
+        async function submitTest() {
+            clearInterval(timerInterval);
+            
+            try {
+                console.log('Submitting test with:', {
+                    answers: answers,
+                    questionStatus: questionStatus,
+                    markedForReview: markedForReview
+                });
+                
+                const response = await api.submitTest(testId, answers, markedForReview, questionStatus);
+                localStorage.setItem('lastTestResult', JSON.stringify(response.result));
+                localStorage.setItem('viewResultId', response.result.id);
+                window.location.href = 'view-result.html';
+            } catch (error) {
+                alert('❌ Error submitting test: ' + error.message);
+                console.error('Error:', error);
+            }
+        }
+
+        initTest();
+    </script>
+</body>
+</html>

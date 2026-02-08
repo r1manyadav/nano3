@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Home - Nano Institute</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1>👨‍🎓 Student Dashboard</h1>
+                <button class="btn btn-secondary logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="student-dashboard">
+                <h2>Welcome, <span id="studentName"></span></h2>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="showEnterTestLink()">📝 Enter Test Link</button>
+                    <button class="btn btn-secondary" onclick="showMyTests()">📋 My Test History</button>
+                </div>
+
+                <!-- Enter Test Link Section -->
+                <div id="enterTestLinkSection" class="section hidden">
+                    <h3>Enter Test Link</h3>
+                    <form id="testLinkForm">
+                        <div class="form-group">
+                            <label for="testLink">Test Link:</label>
+                            <input type="text" id="testLink" placeholder="Paste the test link from your teacher" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Start Test</button>
+                        <button type="button" class="btn btn-secondary" onclick="cancelTestLink()">Cancel</button>
+                    </form>
+                </div>
+
+                <!-- My Tests Section -->
+                <div id="myTestsSection" class="section hidden">
+                    <h3>Your Test History</h3>
+                    <div id="testHistoryList">
+                        <p>No test attempts yet.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        const studentEmail = localStorage.getItem('userId');
+        const user = JSON.parse(localStorage.getItem('user'));
+        document.getElementById('studentName').textContent = studentEmail;
+
+        function showEnterTestLink() {
+            document.getElementById('enterTestLinkSection').classList.remove('hidden');
+            document.getElementById('myTestsSection').classList.add('hidden');
+        }
+
+        async function showMyTests() {
+            document.getElementById('enterTestLinkSection').classList.add('hidden');
+            document.getElementById('myTestsSection').classList.remove('hidden');
+            await displayTestHistory();
+        }
+
+        function cancelTestLink() {
+            document.getElementById('enterTestLinkSection').classList.add('hidden');
+        }
+
+        async function displayTestHistory() {
+            const historyList = document.getElementById('testHistoryList');
+            
+            try {
+                console.log('Fetching test results...');
+                const results = await api.getResults();
+                console.log('Received results:', results);
+
+                if (!results || results.length === 0) {
+                    historyList.innerHTML = '<p>No test attempts yet.</p>';
+                    return;
+                }
+
+                const html = results.map((result) => {
+                    console.log('Rendering result:', {
+                        id: result.id,
+                        test_id: result.test_id,
+                        test_name: result.test_name,
+                        score: result.marks_obtained
+                    });
+                    
+                    const passed = result.is_passed;
+                    // Make sure result.id is defined
+                    const resultId = result.id;
+                    
+                    if (!resultId) {
+                        console.error('WARNING: Result ID is missing!', result);
+                    }
+                    
+                    return `
+                        <div class="test-result-card">
+                            <h4>${result.test_name || 'Test ' + result.test_id}</h4>
+                            <p><strong>Marks:</strong> ${result.marks_obtained}/${result.max_marks} (${result.percentage}%)</p>
+                            <p><strong>Status:</strong> <span class="badge ${passed ? 'badge-success' : 'badge-danger'}">${passed ? '✓ PASSED' : '✗ FAILED'}</span></p>
+                            <p><strong>Date:</strong> ${new Date(result.submitted_at).toLocaleDateString()}</p>
+                            <button class="btn btn-secondary" data-result-id="${resultId}" onclick="viewTestResult(this.getAttribute('data-result-id'))">View Details</button>
+                        </div>
+                    `;
+                }).join('');
+                
+                historyList.innerHTML = html;
+                console.log('Test history rendered successfully');
+            } catch (error) {
+                console.error('Error loading test history:', error);
+                historyList.innerHTML = `<p style="color:red;">Error loading test history: ${error.message}</p>`;
+            }
+        }
+
+        function viewTestResult(resultId) {
+            console.log('Navigating to result:', resultId);
+            if (!resultId || resultId === 'null') {
+                alert('Error: Could not find result ID. Please try again.');
+                return;
+            }
+            localStorage.setItem('viewResultId', resultId);
+            window.location.href = 'view-result.html';
+        }
+
+        document.getElementById('testLinkForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const testLink = document.getElementById('testLink').value;
+            
+            // Extract testId from URL
+            const url = new URL(testLink);
+            const testId = url.searchParams.get('testId');
+
+            if (testId !== null) {
+                window.location.href = `attempt-test.html?testId=${testId}`;
+            } else {
+                alert('Invalid test link!');
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('userType');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

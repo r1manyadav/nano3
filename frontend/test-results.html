@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Results - Teacher - Nano Institute</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1>Test Results</h1>
+                <button class="btn btn-secondary logout-btn" onclick="goBack()">Back</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="results-container">
+                <h2 id="testName">Test Results</h2>
+                
+                <div class="results-summary">
+                    <div class="summary-card">
+                        <p class="summary-label">Total Attempts</p>
+                        <p class="summary-value" id="totalAttempts">0</p>
+                    </div>
+                    <div class="summary-card">
+                        <p class="summary-label">Passed</p>
+                        <p class="summary-value" id="passedCount">0</p>
+                    </div>
+                    <div class="summary-card">
+                        <p class="summary-label">Failed</p>
+                        <p class="summary-value" id="failedCount">0</p>
+                    </div>
+                    <div class="summary-card">
+                        <p class="summary-label">Average Score</p>
+                        <p class="summary-value" id="averageScore">0%</p>
+                    </div>
+                </div>
+
+                <h3>Student Results</h3>
+                <div class="table-container">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>Student Email</th>
+                                <th>Marks</th>
+                                <th>Percentage</th>
+                                <th>Correct/Wrong</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                            <tr><td colspan="6">No results yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        const testId = localStorage.getItem('viewResultsTestId');
+
+        async function displayResults() {
+            try {
+                const results = await api.getTestResults(testId);
+
+                if (!results || results.length === 0) {
+                    document.getElementById('testName').textContent = `Test #${testId} Results`;
+                    document.getElementById('totalAttempts').textContent = '0';
+                    document.getElementById('passedCount').textContent = '0';
+                    document.getElementById('failedCount').textContent = '0';
+                    document.getElementById('averageScore').textContent = '0%';
+                    return;
+                }
+
+                document.getElementById('testName').textContent = `Test #${testId} Results`;
+
+                const passed = results.filter(r => r.is_passed).length;
+                const failed = results.length - passed;
+                const avgScore = Math.round(results.reduce((sum, r) => sum + r.percentage, 0) / results.length);
+
+                document.getElementById('totalAttempts').textContent = results.length;
+                document.getElementById('passedCount').textContent = passed;
+                document.getElementById('failedCount').textContent = failed;
+                document.getElementById('averageScore').textContent = avgScore + '%';
+
+                const tbody = document.getElementById('resultsTableBody');
+                tbody.innerHTML = results.map(result => {
+                    const passed = result.is_passed;
+
+                    return `
+                        <tr>
+                            <td>${result.student_email}</td>
+                            <td><strong>${result.marks_obtained}/${result.max_marks}</strong></td>
+                            <td><strong>${result.percentage}%</strong></td>
+                            <td>${result.correct_count}✓ / ${result.wrong_count}✗</td>
+                            <td><span class="badge ${passed ? 'badge-success' : 'badge-danger'}">${passed ? 'PASSED' : 'FAILED'}</span></td>
+                            <td>${new Date(result.submitted_at).toLocaleDateString()}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                document.querySelector('.results-container').innerHTML = '<p style="color:red;">Error loading results. Please try again.</p>';
+                console.error('Error:', error);
+            }
+        }
+
+        function goBack() {
+            localStorage.removeItem('viewResultsTestId');
+            window.location.href = 'teacher-dashboard.html';
+        }
+
+        displayResults();
+    </script>
+</body>
+</html>

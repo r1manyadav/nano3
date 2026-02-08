@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detailed Results - Nano Institute</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1>Detailed Results</h1>
+                <button class="btn btn-secondary logout-btn" onclick="goBack()">Back</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="detailed-results-container">
+                <h2 id="testTitle">Test Results</h2>
+                
+                <div id="questionsReview"></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        let result = null;
+        let testData = null;
+
+        async function displayDetailedResults() {
+            try {
+                console.log('===== DETAILED RESULTS PAGE LOADED =====');
+                
+                // Try to get result from localStorage first
+                const storedResult = localStorage.getItem('lastTestResult');
+                if (!storedResult) {
+                    throw new Error('Result data not found. Please go back and click View Details again.');
+                }
+                
+                result = JSON.parse(storedResult);
+                console.log('✅ Result loaded from storage:', result);
+                
+                // Use the test data from the result
+                testData = result.test;
+                document.getElementById('testTitle').textContent = testData.name + ' - Detailed Review';
+
+                const questionsReview = document.getElementById('questionsReview');
+                
+                // Display each question with review
+                if (result.questions && result.questions.length > 0) {
+                    questionsReview.innerHTML = result.questions.map((question, index) => {
+                        const studentAnswer = question.student_answer;
+                        const correctAnswer = question.correct_answer;
+                        const isAnswered = studentAnswer !== null && studentAnswer !== undefined;
+                        const isCorrect = isAnswered && studentAnswer === correctAnswer;
+                        const isMarkedForReview = question.is_marked_for_review || false;
+
+                        return `
+                            <div class="question-review ${isCorrect ? 'correct-answer' : (isAnswered ? 'wrong-answer' : 'unanswered')}">
+                                <div class="question-review-header">
+                                    <h3>Question ${index + 1}</h3>
+                                    <div class="badges">
+                                        ${isAnswered ? `
+                                            <span class="badge ${isCorrect ? 'badge-success' : 'badge-danger'}">
+                                                ${isCorrect ? '✓ Correct' : '✗ Wrong'}
+                                            </span>
+                                        ` : `
+                                            <span class="badge badge-warning">⊘ Not Answered</span>
+                                        `}
+                                        ${isMarkedForReview ? '<span class="badge badge-info">📌 Marked for Review</span>' : ''}
+                                    </div>
+                                </div>
+
+                                <p class="question-text"><strong>Question:</strong> ${question.question_text}</p>
+                                ${question.image ? `<div class="question-image"><img src="${question.image}" alt="Question Image" style="max-width: 300px; max-height: 200px;"></div>` : ''}
+
+                                <div class="options-review">
+                                    <div class="option-review ${studentAnswer === 'A' ? (isCorrect ? 'selected-correct' : 'selected-wrong') : ''}">
+                                        <span class="option-letter">A.</span>
+                                        <span class="option-text">${question.option_a}</span>
+                                        ${correctAnswer === 'A' ? '<span class="correct-mark">✓ Correct Answer</span>' : ''}
+                                    </div>
+
+                                    <div class="option-review ${studentAnswer === 'B' ? (isCorrect ? 'selected-correct' : 'selected-wrong') : ''}">
+                                        <span class="option-letter">B.</span>
+                                        <span class="option-text">${question.option_b}</span>
+                                        ${correctAnswer === 'B' ? '<span class="correct-mark">✓ Correct Answer</span>' : ''}
+                                    </div>
+
+                                    <div class="option-review ${studentAnswer === 'C' ? (isCorrect ? 'selected-correct' : 'selected-wrong') : ''}">
+                                        <span class="option-letter">C.</span>
+                                        <span class="option-text">${question.option_c}</span>
+                                        ${correctAnswer === 'C' ? '<span class="correct-mark">✓ Correct Answer</span>' : ''}
+                                    </div>
+
+                                    <div class="option-review ${studentAnswer === 'D' ? (isCorrect ? 'selected-correct' : 'selected-wrong') : ''}">
+                                        <span class="option-letter">D.</span>
+                                        <span class="option-text">${question.option_d}</span>
+                                        ${correctAnswer === 'D' ? '<span class="correct-mark">✓ Correct Answer</span>' : ''}
+                                    </div>
+
+                                    ${isAnswered && !isCorrect ? `<p class="student-answer"><strong>Your Answer:</strong> Option ${studentAnswer}</p>` : ''}
+                                    ${!isAnswered ? `<p class="student-answer"><strong>Your Answer:</strong> Not Answered</p>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    questionsReview.innerHTML = '<p>No questions found in result.</p>';
+                }
+                
+                console.log('✅ Detailed results displayed successfully');
+            } catch (error) {
+                console.error('❌ Error loading detailed results:', error);
+                const errorMessage = error.message || 'Failed to load detailed results';
+                document.querySelector('.detailed-results-container').innerHTML = `
+                    <div style="padding: 20px; background-color: #ffebee; border-radius: 8px;">
+                        <h3 style="color: #c62828;">Error Loading Results</h3>
+                        <p style="color: #d32f2f; margin: 10px 0;">${errorMessage}</p>
+                        <p style="color: #666; font-size: 12px;">Please check the browser console (F12) for more details.</p>
+                        <button class="btn btn-primary" onclick="goBack()" style="margin-top: 10px;">Back to Results</button>
+                    </div>
+                `;
+            }
+        }
+
+        function goBack() {
+            window.location.href = 'view-result.html';
+        }
+
+        displayDetailedResults();
+    </script>
+</body>
+</html>

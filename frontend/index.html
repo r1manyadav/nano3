@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nano Institute - MCQ Test Platform</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎓 Nano Institute</h1>
+            <p>MCQ Test Platform</p>
+        </header>
+
+        <main>
+            <div class="login-section">
+                <div class="login-card teacher-card">
+                    <h2>👨‍🏫 Teacher Login</h2>
+                    <form id="teacherLoginForm">
+                        <div class="form-group">
+                            <label for="teacherId">Teacher ID:</label>
+                            <input type="text" id="teacherId" placeholder="Enter your Teacher ID" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="teacherPassword">Password:</label>
+                            <input type="password" id="teacherPassword" placeholder="Enter your password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Login as Teacher</button>
+                        <p id="teacherError" style="color: red; display: none;"></p>
+                    </form>
+                </div>
+
+                <div class="login-card student-card">
+                    <h2>👨‍🎓 Student Login</h2>
+                    <form id="studentLoginForm">
+                        <div class="form-group">
+                            <label for="studentEmail">Email/Roll No:</label>
+                            <input type="text" id="studentEmail" placeholder="Enter your email or roll number" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="studentPassword">Password:</label>
+                            <input type="password" id="studentPassword" placeholder="Enter your password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Login as Student</button>
+                        <p id="studentError" style="color: red; display: none;"></p>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        document.getElementById('teacherLoginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const teacherId = document.getElementById('teacherId').value;
+            const teacherPassword = document.getElementById('teacherPassword').value;
+            const errorElement = document.getElementById('teacherError');
+            
+            try {
+                const response = await api.teacherLogin(teacherId, teacherPassword);
+                window.location.href = 'teacher-dashboard.html';
+            } catch (error) {
+                errorElement.textContent = 'Invalid Teacher ID or Password';
+                errorElement.style.display = 'block';
+            }
+        });
+
+        document.getElementById('studentLoginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const studentEmail = document.getElementById('studentEmail').value;
+            const studentPassword = document.getElementById('studentPassword').value;
+            const errorElement = document.getElementById('studentError');
+            
+            try {
+                const response = await api.studentLogin(studentEmail, studentPassword);
+                window.location.href = 'student-home.html';
+            } catch (error) {
+                errorElement.textContent = 'Login failed. Please try again.';
+                errorElement.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

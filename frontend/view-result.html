@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Results - Nano Institute</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1>Test Results</h1>
+                <button class="btn btn-secondary logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="result-container">
+                <div class="result-card">
+                    <h2 id="testName">Test Name</h2>
+                    
+                    <div class="score-display">
+                        <div class="score-circle" id="scoreCircle">
+                            <span id="scorePercentage">0%</span>
+                        </div>
+                        <p id="scoreMessage" class="score-message"></p>
+                    </div>
+
+                    <div class="result-details">
+                        <div class="detail-item">
+                            <span class="label">Marks Obtained:</span>
+                            <span class="value" id="marksObtained">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Total Marks:</span>
+                            <span class="value" id="maxMarks">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Percentage:</span>
+                            <span class="value" id="percentageScore">0%</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Correct Answers:</span>
+                            <span class="value correct" id="correctAns">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Wrong Answers:</span>
+                            <span class="value wrong" id="wrongAns">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Passing Marks:</span>
+                            <span class="value" id="passingMarks">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="result-status" id="resultStatus"></div>
+
+                    <div class="button-group">
+                        <button class="btn btn-secondary" onclick="viewDetailedResults()">View Detailed Results</button>
+                        <button class="btn btn-primary" onclick="goHome()">Back to Home</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        let result = null;
+
+        async function displayResults() {
+            try {
+                console.log('===== RESULT PAGE LOADED =====');
+                console.log('Current URL:', window.location.href);
+                console.log('LocalStorage contents:', {
+                    viewResultId: localStorage.getItem('viewResultId'),
+                    token: localStorage.getItem('token') ? 'Present' : 'Missing',
+                    user: localStorage.getItem('user')
+                });
+                
+                const resultId = localStorage.getItem('viewResultId');
+                
+                if (!resultId || resultId === 'null') {
+                    throw new Error('Result ID not found in localStorage. Please go back and click View Details again.');
+                }
+                
+                console.log('Fetching result details for ID:', resultId);
+                result = await api.getResult(resultId);
+                console.log('✅ Result data received:', result);
+
+                // Update page with result data
+                document.getElementById('testName').textContent = result.test_name || `Test #${result.test_id}`;
+                document.getElementById('scorePercentage').textContent = result.percentage + '%';
+                
+                document.getElementById('marksObtained').textContent = result.marks_obtained;
+                document.getElementById('maxMarks').textContent = result.max_marks;
+                document.getElementById('percentageScore').textContent = result.percentage + '%';
+                document.getElementById('correctAns').textContent = result.correct_count;
+                document.getElementById('wrongAns').textContent = result.wrong_count;
+                document.getElementById('passingMarks').textContent = result.passing_marks + '%';
+
+                const scoreCircle = document.getElementById('scoreCircle');
+                if (result.is_passed) {
+                    scoreCircle.classList.add('passed');
+                    document.getElementById('scoreMessage').textContent = '✅ Congratulations! You Passed!';
+                    document.getElementById('scoreMessage').style.color = '#4caf50';
+                    document.getElementById('resultStatus').innerHTML = '<div class="status passed">✓ PASSED</div>';
+                } else {
+                    scoreCircle.classList.add('failed');
+                    document.getElementById('scoreMessage').textContent = '❌ You did not pass this test.';
+                    document.getElementById('scoreMessage').style.color = '#d32f2f';
+                    document.getElementById('resultStatus').innerHTML = '<div class="status failed">✗ FAILED</div>';
+                }
+                
+                console.log('✅ Result page displayed successfully');
+            } catch (error) {
+                console.error('❌ Error loading results:', error);
+                const errorMessage = error.message || 'Failed to fetch results';
+                document.querySelector('.result-container').innerHTML = `
+                    <div style="padding: 20px; background-color: #ffebee; border-radius: 8px;">
+                        <h3 style="color: #c62828;">Error Loading Results</h3>
+                        <p style="color: #d32f2f; margin: 10px 0;">${errorMessage}</p>
+                        <p style="color: #666; font-size: 12px;">Please check the browser console (F12) for more details.</p>
+                        <button class="btn btn-primary" onclick="goHome()">Back to Home</button>
+                    </div>
+                `;
+            }
+        }
+
+        function viewDetailedResults() {
+            if (result) {
+                localStorage.setItem('lastTestResult', JSON.stringify(result));
+                localStorage.setItem('viewResultId', result.id);
+            }
+            window.location.href = 'detailed-results.html';
+        }
+
+        function goHome() {
+            localStorage.removeItem('viewResultId');
+            localStorage.removeItem('lastTestResult');
+            window.location.href = 'student-home.html';
+        }
+
+        function logout() {
+            localStorage.removeItem('userType');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('viewResultId');
+            localStorage.removeItem('lastTestResult');
+            window.location.href = 'index.html';
+        }
+
+        displayResults();
+    </script>
+</body>
+</html>
