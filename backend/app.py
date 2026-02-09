@@ -425,13 +425,31 @@ def health():
 @app.route('/', methods=['GET'])
 def home():
     """Serve the frontend index.html"""
-    return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'frontend'), 'index.html')
+    # Try both possible locations
+    static_dir = os.path.join(os.path.dirname(__file__), 'static')
+    frontend_dir = os.path.join(os.path.dirname(__file__), '..', 'frontend')
+    
+    if os.path.exists(static_dir):
+        return send_from_directory(static_dir, 'index.html')
+    elif os.path.exists(frontend_dir):
+        return send_from_directory(frontend_dir, 'index.html')
+    else:
+        return jsonify({'error': 'Frontend files not found'}), 404
 
 
 @app.route('/<path:filename>', methods=['GET'])
 def serve_static(filename):
-    """Serve static files from frontend directory"""
-    return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'frontend'), filename)
+    """Serve static files from frontend/static directory"""
+    # Check both locations
+    static_dir = os.path.join(os.path.dirname(__file__), 'static')
+    frontend_dir = os.path.join(os.path.dirname(__file__), '..', 'frontend')
+    
+    if os.path.exists(static_dir):
+        return send_from_directory(static_dir, filename)
+    elif os.path.exists(frontend_dir):
+        return send_from_directory(frontend_dir, filename)
+    else:
+        return jsonify({'error': 'File not found'}), 404
 
 
 @app.route('/api/', methods=['GET'])
