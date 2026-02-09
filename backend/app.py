@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
 from werkzeug.security import generate_password_hash
@@ -424,6 +424,19 @@ def health():
 
 @app.route('/', methods=['GET'])
 def home():
+    """Serve the frontend index.html"""
+    return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'frontend'), 'index.html')
+
+
+@app.route('/<path:filename>', methods=['GET'])
+def serve_static(filename):
+    """Serve static files from frontend directory"""
+    return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'frontend'), filename)
+
+
+@app.route('/api/', methods=['GET'])
+def api_info():
+    """Show API endpoints information"""
     return jsonify({
         'message': 'Nano Institute - MCQ Test Platform Backend',
         'version': '1.0.0',
