@@ -422,10 +422,37 @@ def health():
     return jsonify({'status': 'OK', 'message': 'Nano Test Platform Backend'}), 200
 
 
+# Configure static file serving BEFORE route definitions
+@app.before_request
+def before_request():
+    """Serve static files if they exist"""
+    if request.path.startswith('/api/'):
+        return  # Let API routes handle it
+    
+    # Try to serve static files
+    static_dir = os.path.join(os.path.dirname(__file__), 'static')
+    frontend_dir = os.path.join(os.path.dirname(__file__), '..', 'frontend')
+    
+    requested_file = request.path.lstrip('/')
+    if not requested_file or requested_file == '':
+        requested_file = 'index.html'
+    
+    # Check static directory first (Docker)
+    if os.path.exists(static_dir):
+        file_path = os.path.join(static_dir, requested_file)
+        if os.path.exists(file_path):
+            return send_from_directory(static_dir, requested_file)
+    
+    # Check frontend directory (local development)
+    if os.path.exists(frontend_dir):
+        file_path = os.path.join(frontend_dir, requested_file)
+        if os.path.exists(file_path):
+            return send_from_directory(frontend_dir, requested_file)
+
+
 @app.route('/', methods=['GET'])
 def home():
     """Serve the frontend index.html"""
-    # Try both possible locations
     static_dir = os.path.join(os.path.dirname(__file__), 'static')
     frontend_dir = os.path.join(os.path.dirname(__file__), '..', 'frontend')
     
@@ -438,18 +465,21 @@ def home():
 
 
 @app.route('/<path:filename>', methods=['GET'])
-def serve_static(filename):
-    """Serve static files from frontend/static directory"""
-    # Check both locations
+def serve_file(filename):
+    """Serve files from frontend directory"""
     static_dir = os.path.join(os.path.dirname(__file__), 'static')
     frontend_dir = os.path.join(os.path.dirname(__file__), '..', 'frontend')
     
+    # Try static directory first (Docker)
     if os.path.exists(static_dir):
         return send_from_directory(static_dir, filename)
-    elif os.path.exists(frontend_dir):
+    
+    # Try frontend directory (Local)
+    if os.path.exists(frontend_dir):
         return send_from_directory(frontend_dir, filename)
-    else:
-        return jsonify({'error': 'File not found'}), 404
+    
+    # Not found - return 404
+    return jsonify({'error': f'File {filename} not found'}), 404
 
 
 @app.route('/api/', methods=['GET'])
