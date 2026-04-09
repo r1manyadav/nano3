@@ -19,7 +19,15 @@ BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 INSTANCE_DIR = os.path.join(BACKEND_DIR, 'instance')
 os.makedirs(INSTANCE_DIR, exist_ok=True)  # Ensure instance folder exists
 DATABASE_PATH = os.path.join(INSTANCE_DIR, 'nano_test_platform.db')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', f'sqlite:///{DATABASE_PATH}')
+
+# Get DATABASE_URL from environment or create default
+database_url = os.getenv('DATABASE_URL')
+if not database_url:
+    # Format SQLite URI properly for Windows with forward slashes
+    db_path = DATABASE_PATH.replace('\\', '/')
+    database_url = f'sqlite:///{db_path}'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your_jwt_secret_key')
 
@@ -32,8 +40,8 @@ CORS(app,
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
      supports_credentials=True)
 
-with app.app_context():
-    db.create_all()
+# Tables are created by test fixtures or on first deployment
+# NOT creating tables at import time
 
 # ==================== Authentication Routes ====================
 
